@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-MZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar — TxopelaGO</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container nav">
+    <a href="index.html" class="brand">
+      <span class="mark">
+        <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+          <circle cx="50" cy="50" r="47" stroke="#ff7a29" stroke-width="2"/>
+          <path d="M22 62 h14 l8 -16 h20 l6 12 h10" stroke="#ffa066" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="34" cy="66" r="8" stroke="#ff7a29" stroke-width="3.5"/>
+          <circle cx="70" cy="66" r="8" stroke="#ff7a29" stroke-width="3.5"/>
+        </svg>
+      </span>
+      <span>TxopelaGO<small>Moto-táxi em minutos</small></span>
+    </a>
+    <nav class="nav-links">
+      <a href="pedir.html">Pedir corrida</a>
+      <a href="entrar.html?tipo=motorista">Sou motorista</a>
+    </nav>
+  </div>
+</header>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <span class="mark">
+      <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+        <circle cx="50" cy="50" r="47" stroke="#ff7a29" stroke-width="2"/>
+        <path d="M22 62 h14 l8 -16 h20 l6 12 h10" stroke="#ffa066" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="34" cy="66" r="8" stroke="#ff7a29" stroke-width="3.5"/>
+        <circle cx="70" cy="66" r="8" stroke="#ff7a29" stroke-width="3.5"/>
+      </svg>
+    </span>
+    <h1 id="titulo">Entrar na sua conta</h1>
+    <p class="sub" id="subtitulo">Peça corridas ou gerencie suas viagens.</p>
+
+    <div class="tabs">
+      <button type="button" id="tab-entrar" class="active">Entrar</button>
+      <button type="button" id="tab-criar">Criar conta</button>
+    </div>
+
+    <div id="form-msg"></div>
+
+    <!-- FORM ENTRAR -->
+    <form id="form-login">
+      <div class="field">
+        <label for="login-email">E-mail</label>
+        <input type="email" id="login-email" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="login-senha">Senha</label>
+        <input type="password" id="login-senha" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+    </form>
+
+    <!-- FORM CRIAR CONTA -->
+    <form id="form-cadastro" hidden>
+      <div class="type-toggle">
+        <label><input type="radio" name="tipo" value="passageiro" checked><span>Sou passageiro</span></label>
+        <label><input type="radio" name="tipo" value="motorista"><span>Sou motorista</span></label>
+      </div>
+      <div class="field">
+        <label for="cad-nome">Nome completo</label>
+        <input type="text" id="cad-nome" required>
+      </div>
+      <div class="field">
+        <label for="cad-telefone">Telefone</label>
+        <input type="tel" id="cad-telefone" placeholder="84/85... ">
+      </div>
+      <div class="field">
+        <label for="cad-email">E-mail</label>
+        <input type="email" id="cad-email" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="cad-senha">Senha</label>
+        <input type="password" id="cad-senha" required minlength="6" autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Criar conta</button>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+import { supabase } from './assets/js/supabase-client.js';
+
+// Se já estiver logado, manda pro lugar certo
+const { data: { session } } = await supabase.auth.getSession();
+if (session) {
+  const { data: perfil } = await supabase.from('perfis').select('tipo').eq('id', session.user.id).single();
+  window.location.href = (perfil?.tipo === 'motorista') ? 'motorista.html' : 'pedir.html';
+}
+
+// Pré-seleciona "motorista" se veio de ?tipo=motorista
+const params = new URLSearchParams(window.location.search);
+if (params.get('tipo') === 'motorista') {
+  document.getElementById('titulo').textContent = 'Área do motorista';
+  document.getElementById('subtitulo').textContent = 'Entre ou cadastre-se para receber pedidos de corrida.';
+  document.getElementById('tab-criar').click();
+  document.querySelector('input[name="tipo"][value="motorista"]').checked = true;
+}
+
+// ---- Tabs ----
+const tabEntrar = document.getElementById('tab-entrar');
+const tabCriar = document.getElementById('tab-criar');
+const formLogin = document.getElementById('form-login');
+const formCadastro = document.getElementById('form-cadastro');
+const formMsg = document.getElementById('form-msg');
+
+tabEntrar.addEventListener('click', () => {
+  tabEntrar.classList.add('active'); tabCriar.classList.remove('active');
+  formLogin.hidden = false; formCadastro.hidden = true; formMsg.innerHTML = '';
+});
+tabCriar.addEventListener('click', () => {
+  tabCriar.classList.add('active'); tabEntrar.classList.remove('active');
+  formCadastro.hidden = false; formLogin.hidden = true; formMsg.innerHTML = '';
+});
+
+// ---- Login ----
+formLogin.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  formMsg.innerHTML = '';
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: document.getElementById('login-email').value,
+    password: document.getElementById('login-senha').value,
+  });
+  if (error) {
+    formMsg.innerHTML = `<div class="alert alert-error">E-mail ou senha inválidos.</div>`;
+    return;
+  }
+  const { data: perfil } = await supabase.from('perfis').select('tipo').eq('id', data.user.id).single();
+  window.location.href = (perfil?.tipo === 'motorista') ? 'motorista.html' : 'pedir.html';
+});
+
+// ---- Cadastro ----
+formCadastro.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  formMsg.innerHTML = '';
+  const tipo = document.querySelector('input[name="tipo"]:checked').value;
+
+  const { data, error } = await supabase.auth.signUp({
+    email: document.getElementById('cad-email').value,
+    password: document.getElementById('cad-senha').value,
+    options: {
+      data: {
+        nome: document.getElementById('cad-nome').value,
+        telefone: document.getElementById('cad-telefone').value,
+        tipo,
+      }
+    }
+  });
+
+  if (error) {
+    formMsg.innerHTML = `<div class="alert alert-error">${error.message.includes('already') ? 'Este e-mail já está cadastrado.' : 'Não foi possível criar a conta.'}</div>`;
+    return;
+  }
+
+  if (tipo === 'motorista' && data.user) {
+    await supabase.from('motoristas').insert({ id: data.user.id });
+  }
+
+  if (data.session) {
+    window.location.href = (tipo === 'motorista') ? 'motorista.html' : 'pedir.html';
+  } else {
+    formMsg.innerHTML = `<div class="alert alert-ok">Conta criada! Verifique seu e-mail para confirmar antes de entrar.</div>`;
+  }
+});
+</script>
+
+</body>
+</html>

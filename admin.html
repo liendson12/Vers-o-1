@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="pt-MZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel admin — TxopelaGO</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container nav">
+    <a href="index.html" class="brand">
+      <span class="mark">
+        <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+          <circle cx="50" cy="50" r="47" stroke="#ff7a29" stroke-width="2"/>
+          <path d="M22 62 h14 l8 -16 h20 l6 12 h10" stroke="#ffa066" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="34" cy="66" r="8" stroke="#ff7a29" stroke-width="3.5"/>
+          <circle cx="70" cy="66" r="8" stroke="#ff7a29" stroke-width="3.5"/>
+        </svg>
+      </span>
+      <span>TxopelaGO<small>Painel administrativo</small></span>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html">Ver site</a>
+      <a href="#" id="btn-logout" class="nav-cta">Sair</a>
+    </nav>
+  </div>
+</header>
+
+<div class="dash-grid">
+  <aside class="dash-side">
+    <div class="who" id="who">Carregando sessão…</div>
+    <nav class="dash-nav">
+      <button data-panel="visao" class="active">Visão geral</button>
+      <button data-panel="motoristas">Motoristas</button>
+      <button data-panel="corridas">Corridas</button>
+      <button data-panel="pagamentos">Pagamentos</button>
+      <button data-panel="tarifas">Tarifas &amp; comissão</button>
+      <button data-panel="promocoes">Promoções</button>
+    </nav>
+  </aside>
+
+  <main class="dash-main">
+
+    <!-- VISÃO GERAL -->
+    <section class="panel active" id="panel-visao">
+      <div class="admin-head"><h2>Visão geral</h2></div>
+      <div class="grid3" style="margin-bottom:28px;">
+        <div class="step-card"><div class="step-num">👥</div><h3 id="m-usuarios">0</h3><p>Passageiros cadastrados</p></div>
+        <div class="step-card"><div class="step-num">🏍️</div><h3 id="m-motoristas">0</h3><p>Motoristas (online agora: <span id="m-online">0</span>)</p></div>
+        <div class="step-card"><div class="step-num">🚕</div><h3 id="m-corridas-hoje">0</h3><p>Corridas hoje</p></div>
+      </div>
+      <div class="grid3" style="margin-bottom:28px;">
+        <div class="step-card"><div class="step-num">MT</div><h3 id="m-receita">0 MT</h3><p>Receita bruta total</p></div>
+        <div class="step-card"><div class="step-num">%</div><h3 id="m-comissao">0 MT</h3><p>Comissão TxopelaGO acumulada</p></div>
+        <div class="step-card"><div class="step-num">✕</div><h3 id="m-canceladas">0</h3><p>Corridas canceladas</p></div>
+      </div>
+      <div class="table-wrap" style="padding:20px;">
+        <canvas id="grafico-corridas" height="90"></canvas>
+      </div>
+    </section>
+
+    <!-- MOTORISTAS -->
+    <section class="panel" id="panel-motoristas">
+      <div class="admin-head"><h2>Motoristas</h2></div>
+      <div class="table-wrap"><table><thead><tr><th>Nome</th><th>Telefone</th><th>Moto</th><th>Status</th><th></th></tr></thead><tbody id="tbody-motoristas"></tbody></table></div>
+    </section>
+
+    <!-- CORRIDAS -->
+    <section class="panel" id="panel-corridas">
+      <div class="admin-head"><h2>Todas as corridas</h2></div>
+      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Trajeto</th><th>Preço</th><th>Pagamento</th><th>Status</th></tr></thead><tbody id="tbody-corridas"></tbody></table></div>
+    </section>
+
+    <!-- PAGAMENTOS -->
+    <section class="panel" id="panel-pagamentos">
+      <div class="admin-head"><h2>Pagamentos</h2></div>
+      <p style="color:var(--muted); font-size:.86rem; max-width:60ch; margin-bottom:18px;">
+        Enquanto a integração oficial com M-Pesa/e-Mola não está ativa, confirme aqui manualmente os pagamentos recebidos fora do sistema.
+      </p>
+      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Método</th><th>Valor</th><th>Referência</th><th>Status</th></tr></thead><tbody id="tbody-pagamentos"></tbody></table></div>
+    </section>
+
+    <!-- TARIFAS -->
+    <section class="panel" id="panel-tarifas">
+      <div class="admin-head"><h2>Tarifas &amp; comissão</h2></div>
+      <div class="form-card" style="max-width:520px;">
+        <div id="form-msg-tarifas"></div>
+        <form id="form-tarifas">
+          <div class="field"><label>Taxa base (MT)</label><input type="number" step="0.01" id="t-base"></div>
+          <div class="field"><label>Preço por km (MT)</label><input type="number" step="0.01" id="t-km"></div>
+          <div class="field"><label>Comissão TxopelaGO (%)</label><input type="number" step="0.1" id="t-comissao"></div>
+          <div class="field"><label>Taxa de cancelamento (MT)</label><input type="number" step="0.01" id="t-cancelamento"></div>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- PROMOÇÕES -->
+    <section class="panel" id="panel-promocoes">
+      <div class="admin-head"><h2>Códigos promocionais</h2><button class="btn btn-primary" id="btn-nova-promo">+ Novo código</button></div>
+      <div class="form-card" id="form-promo-card" hidden>
+        <form id="form-promo">
+          <div class="form-grid">
+            <div class="field"><label>Código</label><input type="text" id="promo-codigo" style="text-transform:uppercase;" required></div>
+            <div class="field"><label>Desconto (%)</label><input type="number" step="0.1" id="promo-desconto" required></div>
+            <div class="field"><label>Validade</label><input type="date" id="promo-validade"></div>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:14px;">
+            <button type="submit" class="btn btn-primary">Salvar</button>
+            <button type="button" class="btn btn-ghost" id="cancelar-promo">Cancelar</button>
+          </div>
+        </form>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Código</th><th>Desconto</th><th>Validade</th><th>Status</th><th></th></tr></thead><tbody id="tbody-promocoes"></tbody></table></div>
+    </section>
+
+  </main>
+</div>
+
+<script type="module">
+import { supabase, formatMT, formatDateHora } from './assets/js/supabase-client.js';
+
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) { window.location.href = 'admin-login.html'; throw new Error('sem sessão'); }
+document.getElementById('who').textContent = session.user.email;
+
+document.getElementById('btn-logout').addEventListener('click', async (e) => {
+  e.preventDefault();
+  await supabase.auth.signOut();
+  window.location.href = 'admin-login.html';
+});
+
+document.querySelectorAll('.dash-nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.dash-nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+  });
+});
+
+function pill(status) {
+  const map = { aprovado: 'pill-ok', pendente: 'pill-novo', reprovado: 'pill-off',
+    confirmado: 'pill-ok', falhou: 'pill-off', ativo: 'pill-ok', inativo: 'pill-off' };
+  return `<span class="pill ${map[status] || 'pill-off'}" style="padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:600;background:var(--surface-2);">${status}</span>`;
+}
+
+// ============ VISÃO GERAL ============
+async function carregarVisaoGeral() {
+  const { count: usuarios } = await supabase.from('perfis').select('*', { count: 'exact', head: true }).eq('tipo', 'passageiro');
+  const { count: motoristas } = await supabase.from('motoristas').select('*', { count: 'exact', head: true });
+  const { count: online } = await supabase.from('motoristas').select('*', { count: 'exact', head: true }).eq('disponivel', true);
+
+  const inicioHoje = new Date(); inicioHoje.setHours(0,0,0,0);
+  const { count: corridasHoje } = await supabase.from('corridas').select('*', { count: 'exact', head: true }).gte('created_at', inicioHoje.toISOString());
+  const { count: canceladas } = await supabase.from('corridas').select('*', { count: 'exact', head: true }).eq('status', 'cancelada');
+
+  const { data: concluidas } = await supabase.from('corridas').select('preco_estimado, created_at').eq('status', 'concluida');
+  const { data: tarifaData } = await supabase.from('tarifas').select('comissao_percentual').eq('id', 1).single();
+  const comissaoPerc = tarifaData?.comissao_percentual || 0;
+  const receita = (concluidas || []).reduce((s, c) => s + Number(c.preco_estimado || 0), 0);
+  const comissaoTotal = receita * (comissaoPerc / 100);
+
+  document.getElementById('m-usuarios').textContent = usuarios || 0;
+  document.getElementById('m-motoristas').textContent = motoristas || 0;
+  document.getElementById('m-online').textContent = online || 0;
+  document.getElementById('m-corridas-hoje').textContent = corridasHoje || 0;
+  document.getElementById('m-receita').textContent = formatMT(receita);
+  document.getElementById('m-comissao').textContent = formatMT(comissaoTotal);
+  document.getElementById('m-canceladas').textContent = canceladas || 0;
+
+  // Gráfico: corridas concluídas por dia (últimos 7 dias)
+  const dias = [...Array(7)].map((_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - (6 - i)); d.setHours(0,0,0,0); return d;
+  });
+  const contagem = dias.map(dia => {
+    const proximo = new Date(dia); proximo.setDate(proximo.getDate() + 1);
+    return (concluidas || []).filter(c => {
+      const t = new Date(c.created_at);
+      return t >= dia && t < proximo;
+    }).length;
+  });
+  const ctx = document.getElementById('grafico-corridas');
+  if (window._chartCorridas) window._chartCorridas.destroy();
+  window._chartCorridas = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: dias.map(d => d.toLocaleDateString('pt-PT', { weekday: 'short' })),
+      datasets: [{ label: 'Corridas concluídas', data: contagem, backgroundColor: '#ff7a29' }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+}
+
+// ============ MOTORISTAS ============
+async function carregarMotoristas() {
+  const { data } = await supabase.from('motoristas').select('*, perfis(nome, telefone)').order('created_at', { ascending: false });
+  const tbody = document.getElementById('tbody-motoristas');
+  tbody.innerHTML = (data || []).map(m => `
+    <tr>
+      <td>${m.perfis?.nome || '—'}</td>
+      <td>${m.perfis?.telefone || '—'}</td>
+      <td>${m.modelo_moto || '—'} ${m.matricula_moto ? '· ' + m.matricula_moto : ''}</td>
+      <td>${pill(m.aprovado ? 'aprovado' : 'pendente')}</td>
+      <td>
+        <div class="row-actions" style="display:flex; gap:8px;">
+          ${!m.aprovado ? `<button class="icon-btn" data-aprovar="${m.id}" title="Aprovar">✔</button>` : `<button class="icon-btn" data-reprovar="${m.id}" title="Suspender">⏻</button>`}
+        </div>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" class="state-msg">Nenhum motorista cadastrado.</td></tr>';
+
+  tbody.querySelectorAll('[data-aprovar]').forEach(b => b.addEventListener('click', async () => {
+    await supabase.from('motoristas').update({ aprovado: true }).eq('id', b.dataset.aprovar);
+    carregarMotoristas();
+  }));
+  tbody.querySelectorAll('[data-reprovar]').forEach(b => b.addEventListener('click', async () => {
+    await supabase.from('motoristas').update({ aprovado: false, disponivel: false }).eq('id', b.dataset.reprovar);
+    carregarMotoristas();
+  }));
+}
+
+// ============ CORRIDAS ============
+async function carregarCorridas() {
+  const { data } = await supabase.from('corridas').select('*').order('created_at', { ascending: false }).limit(50);
+  const tbody = document.getElementById('tbody-corridas');
+  tbody.innerHTML = (data || []).map(c => `
+    <tr>
+      <td>${formatDateHora(c.created_at)}</td>
+      <td>${c.origem} → ${c.destino}</td>
+      <td>${formatMT(c.preco_estimado)}</td>
+      <td>${c.metodo_pagamento === 'emola' ? 'e-Mola' : 'M-Pesa'}</td>
+      <td>${pill(c.status)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" class="state-msg">Nenhuma corrida ainda.</td></tr>';
+}
+
+// ============ PAGAMENTOS ============
+async function carregarPagamentos() {
+  const { data } = await supabase.from('pagamentos').select('*').order('created_at', { ascending: false }).limit(50);
+  const tbody = document.getElementById('tbody-pagamentos');
+  tbody.innerHTML = (data || []).map(p => `
+    <tr>
+      <td>${formatDateHora(p.created_at)}</td>
+      <td>${p.metodo === 'emola' ? 'e-Mola' : 'M-Pesa'}</td>
+      <td>${formatMT(p.valor)}</td>
+      <td>${p.referencia || '—'}</td>
+      <td>
+        <select data-pagamento="${p.id}">
+          <option value="pendente" ${p.status === 'pendente' ? 'selected' : ''}>pendente</option>
+          <option value="confirmado" ${p.status === 'confirmado' ? 'selected' : ''}>confirmado</option>
+          <option value="falhou" ${p.status === 'falhou' ? 'selected' : ''}>falhou</option>
+        </select>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" class="state-msg">Nenhum pagamento ainda.</td></tr>';
+
+  tbody.querySelectorAll('[data-pagamento]').forEach(sel => sel.addEventListener('change', async () => {
+    await supabase.from('pagamentos').update({ status: sel.value }).eq('id', sel.dataset.pagamento);
+  }));
+}
+
+// ============ TARIFAS ============
+async function carregarTarifas() {
+  const { data } = await supabase.from('tarifas').select('*').eq('id', 1).single();
+  if (!data) return;
+  document.getElementById('t-base').value = data.tarifa_base;
+  document.getElementById('t-km').value = data.tarifa_por_km;
+  document.getElementById('t-comissao').value = data.comissao_percentual;
+  document.getElementById('t-cancelamento').value = data.taxa_cancelamento;
+}
+document.getElementById('form-tarifas').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const { error } = await supabase.from('tarifas').update({
+    tarifa_base: parseFloat(document.getElementById('t-base').value) || 0,
+    tarifa_por_km: parseFloat(document.getElementById('t-km').value) || 0,
+    comissao_percentual: parseFloat(document.getElementById('t-comissao').value) || 0,
+    taxa_cancelamento: parseFloat(document.getElementById('t-cancelamento').value) || 0,
+  }).eq('id', 1);
+  document.getElementById('form-msg-tarifas').innerHTML = error
+    ? `<div class="alert alert-error">Não foi possível salvar.</div>`
+    : `<div class="alert alert-ok">Tarifas atualizadas!</div>`;
+});
+
+// ============ PROMOÇÕES ============
+const btnNovaPromo = document.getElementById('btn-nova-promo');
+const formPromoCard = document.getElementById('form-promo-card');
+const formPromo = document.getElementById('form-promo');
+btnNovaPromo.addEventListener('click', () => { formPromo.reset(); formPromoCard.hidden = false; });
+document.getElementById('cancelar-promo').addEventListener('click', () => formPromoCard.hidden = true);
+
+formPromo.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const { error } = await supabase.from('promocoes').insert({
+    codigo: document.getElementById('promo-codigo').value.toUpperCase(),
+    desconto_percentual: parseFloat(document.getElementById('promo-desconto').value) || 0,
+    validade: document.getElementById('promo-validade').value || null,
+  });
+  if (!error) { formPromoCard.hidden = true; carregarPromocoes(); } else alert('Não foi possível salvar (verifique se o código já existe).');
+});
+
+async function carregarPromocoes() {
+  const { data } = await supabase.from('promocoes').select('*').order('created_at', { ascending: false });
+  const tbody = document.getElementById('tbody-promocoes');
+  tbody.innerHTML = (data || []).map(p => `
+    <tr>
+      <td>${p.codigo}</td>
+      <td>${p.desconto_percentual}%</td>
+      <td>${p.validade || '—'}</td>
+      <td>${pill(p.ativo ? 'ativo' : 'inativo')}</td>
+      <td>
+        <div style="display:flex; gap:8px;">
+          <button class="icon-btn" data-toggle="${p.id}" data-ativo="${p.ativo}" title="Ativar/desativar">⏻</button>
+          <button class="icon-btn" data-del="${p.id}" title="Excluir">🗑</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" class="state-msg">Nenhum código criado.</td></tr>';
+
+  tbody.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', async () => {
+    await supabase.from('promocoes').update({ ativo: !(b.dataset.ativo === 'true') }).eq('id', b.dataset.toggle);
+    carregarPromocoes();
+  }));
+  tbody.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Excluir este código?')) return;
+    await supabase.from('promocoes').delete().eq('id', b.dataset.del);
+    carregarPromocoes();
+  }));
+}
+
+carregarVisaoGeral();
+carregarMotoristas();
+carregarCorridas();
+carregarPagamentos();
+carregarTarifas();
+carregarPromocoes();
+</script>
+
+</body>
+</html>

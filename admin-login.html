@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-MZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Área admin — TxopelaGO</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container nav">
+    <a href="index.html" class="brand">
+      <span class="mark">
+        <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+          <circle cx="50" cy="50" r="47" stroke="#ff7a29" stroke-width="2"/>
+          <path d="M22 62 h14 l8 -16 h20 l6 12 h10" stroke="#ffa066" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="34" cy="66" r="8" stroke="#ff7a29" stroke-width="3.5"/>
+          <circle cx="70" cy="66" r="8" stroke="#ff7a29" stroke-width="3.5"/>
+        </svg>
+      </span>
+      <span>TxopelaGO<small>Painel administrativo</small></span>
+    </a>
+  </div>
+</header>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h1>Área do administrador</h1>
+    <p class="sub">Entre com o e-mail e senha de administrador cadastrados no Supabase.</p>
+    <div id="form-msg"></div>
+    <form id="form-login">
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="btn-entrar">Entrar</button>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+import { supabase } from './assets/js/supabase-client.js';
+
+const { data: { session } } = await supabase.auth.getSession();
+if (session) window.location.href = 'admin.html';
+
+const form = document.getElementById('form-login');
+const formMsg = document.getElementById('form-msg');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('btn-entrar');
+  btn.disabled = true; btn.textContent = 'Entrando…';
+  formMsg.innerHTML = '';
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email: document.getElementById('email').value,
+    password: document.getElementById('senha').value,
+  });
+
+  if (error) {
+    formMsg.innerHTML = `<div class="alert alert-error">E-mail ou senha inválidos.</div>`;
+    btn.disabled = false; btn.textContent = 'Entrar';
+  } else {
+    window.location.href = 'admin.html';
+  }
+});
+</script>
+
+</body>
+</html>

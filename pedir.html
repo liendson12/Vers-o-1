@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="pt-MZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pedir corrida — TxopelaGO</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container nav">
+    <a href="index.html" class="brand">
+      <span class="mark">
+        <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+          <circle cx="50" cy="50" r="47" stroke="#ff7a29" stroke-width="2"/>
+          <path d="M22 62 h14 l8 -16 h20 l6 12 h10" stroke="#ffa066" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="34" cy="66" r="8" stroke="#ff7a29" stroke-width="3.5"/>
+          <circle cx="70" cy="66" r="8" stroke="#ff7a29" stroke-width="3.5"/>
+        </svg>
+      </span>
+      <span>TxopelaGO<small>Moto-táxi em minutos</small></span>
+    </a>
+    <nav class="nav-links">
+      <span id="who" style="color:var(--muted); font-size:.88rem;"></span>
+      <a href="#" id="btn-logout" class="nav-cta">Sair</a>
+    </nav>
+  </div>
+</header>
+
+<section class="section-pad">
+  <div class="container">
+
+    <div id="area-pedido">
+      <div class="section-head">
+        <div class="eyebrow">Nova corrida</div>
+        <h2>Para onde vamos?</h2>
+      </div>
+      <div class="card-form">
+        <div id="form-msg"></div>
+        <form id="form-corrida">
+          <div class="field">
+            <label for="origem">Ponto de partida</label>
+            <input type="text" id="origem" placeholder="Ex: Baixa, Maputo" required>
+          </div>
+          <div class="field">
+            <label for="destino">Destino</label>
+            <input type="text" id="destino" placeholder="Ex: Costa do Sol" required>
+          </div>
+          <div class="field">
+            <label for="distancia">Distância aproximada (km)</label>
+            <input type="number" id="distancia" min="0.5" step="0.5" placeholder="Ex: 6" required>
+          </div>
+          <div class="field">
+            <label for="promo">Código promocional (opcional)</label>
+            <input type="text" id="promo" placeholder="Ex: TXOPELA10">
+          </div>
+          <div class="type-toggle">
+            <label><input type="radio" name="pagamento" value="mpesa" checked><span>M-Pesa</span></label>
+            <label><input type="radio" name="pagamento" value="emola"><span>e-Mola</span></label>
+          </div>
+          <div class="field">
+            <label>Preço estimado</label>
+            <div class="price-tag" id="preco-estimado">— MT</div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="btn-pedir">Chamar txopela</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="area-status" hidden>
+      <div class="section-head">
+        <div class="eyebrow">Corrida atual</div>
+        <h2>Acompanhe em tempo real</h2>
+      </div>
+      <div class="ride-card" id="status-card"></div>
+    </div>
+
+    <div style="margin-top:48px;">
+      <div class="section-head"><h2 style="font-size:1.2rem;">Histórico</h2></div>
+      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Trajeto</th><th>Preço</th><th>Status</th></tr></thead><tbody id="tbody-historico"></tbody></table></div>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="container footer-row">
+    <span class="brand" style="font-size:1rem">TxopelaGO</span>
+    <a href="seguranca.html" style="color:var(--muted);font-size:.85rem;">Segurança e Ajuda</a>
+    <a href="admin-login.html" style="color:var(--muted);font-size:.85rem;">Área admin</a>
+    <span class="copy">© 2026 TxopelaGO Moz. Todos os direitos reservados.</span>
+  </div>
+</footer>
+
+<script type="module">
+import { supabase, requireLogin, formatMT, formatDateHora } from './assets/js/supabase-client.js';
+
+const session = await requireLogin();
+if (!session) throw new Error('sem sessão');
+document.getElementById('who').textContent = session.user.email;
+
+document.getElementById('btn-logout').addEventListener('click', async (e) => {
+  e.preventDefault();
+  await supabase.auth.signOut();
+  window.location.href = 'index.html';
+});
+
+let tarifa = { tarifa_base: 30, tarifa_por_km: 15 };
+const { data: tarifaData } = await supabase.from('tarifas').select('*').eq('id', 1).single();
+if (tarifaData) tarifa = tarifaData;
+
+const inputDistancia = document.getElementById('distancia');
+const inputPromo = document.getElementById('promo');
+const precoEstimado = document.getElementById('preco-estimado');
+let promoAtual = null;
+
+async function calcularPreco() {
+  const km = parseFloat(inputDistancia.value) || 0;
+  let preco = tarifa.tarifa_base + km * tarifa.tarifa_por_km;
+  promoAtual = null;
+
+  const codigo = inputPromo.value.trim().toUpperCase();
+  if (codigo) {
+    const { data } = await supabase.from('promocoes').select('*').eq('codigo', codigo).eq('ativo', true).maybeSingle();
+    if (data) {
+      promoAtual = data;
+      preco = preco * (1 - data.desconto_percentual / 100);
+    }
+  }
+  precoEstimado.textContent = formatMT(preco);
+  return preco;
+}
+inputDistancia.addEventListener('input', calcularPreco);
+inputPromo.addEventListener('change', calcularPreco);
+calcularPreco();
+
+const areaPedido = document.getElementById('area-pedido');
+const areaStatus = document.getElementById('area-status');
+const statusCard = document.getElementById('status-card');
+const formMsg = document.getElementById('form-msg');
+
+const statusLabel = {
+  procurando: 'Procurando motorista…',
+  aceita: 'Motorista a caminho',
+  em_andamento: 'Em viagem',
+  concluida: 'Concluída',
+  cancelada: 'Cancelada',
+};
+
+async function verificarCorridaAtiva() {
+  const { data } = await supabase
+    .from('corridas')
+    .select('*')
+    .eq('passageiro_id', session.user.id)
+    .in('status', ['procurando', 'aceita', 'em_andamento'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (data) {
+    mostrarStatus(data);
+  } else {
+    areaPedido.hidden = false;
+    areaStatus.hidden = true;
+  }
+}
+
+function linkRota(origem, destino) {
+  const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origem)}&destination=${encodeURIComponent(destino)}`;
+  return `<a href="${url}" target="_blank" rel="noopener" style="color:var(--orange-soft); font-size:.84rem;">Ver rota no mapa →</a>`;
+}
+
+function mostrarStatus(corrida) {
+  areaPedido.hidden = true;
+  areaStatus.hidden = false;
+  statusCard.innerHTML = `
+    <div class="ride-row">
+      <div>
+        <span class="status-pill status-${corrida.status}">${statusLabel[corrida.status] || corrida.status}</span>
+        <div class="ride-route" style="margin-top:10px;">${corrida.origem} → ${corrida.destino}</div>
+        <div class="ride-meta">${corrida.distancia_km} km · pedido às ${formatDateHora(corrida.created_at)} · ${corrida.metodo_pagamento === 'emola' ? 'e-Mola' : 'M-Pesa'}</div>
+        <div style="margin-top:8px;">${linkRota(corrida.origem, corrida.destino)}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="price-tag">${formatMT(corrida.preco_estimado)}</div>
+        ${corrida.status === 'procurando' ? `<button class="btn btn-ghost" id="btn-cancelar" style="margin-top:10px;">Cancelar pedido</button>` : ''}
+      </div>
+    </div>
+    ${corrida.status === 'concluida' && !corrida.avaliada ? `
+      <div id="bloco-avaliacao" style="margin-top:18px; border-top:1px solid var(--border); padding-top:18px;">
+        <p style="margin-bottom:10px; font-size:.92rem;">Como foi a viagem?</p>
+        <div id="estrelas" style="display:flex; gap:6px; margin-bottom:12px;">
+          ${[1,2,3,4,5].map(n => `<button type="button" class="icon-btn" data-nota="${n}" style="width:38px;height:38px;font-size:1.1rem;">★</button>`).join('')}
+        </div>
+        <textarea id="comentario-avaliacao" placeholder="Comentário (opcional)" style="width:100%; background:var(--bg-soft); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:10px; min-height:60px;"></textarea>
+        <button class="btn btn-primary" id="btn-enviar-avaliacao" style="margin-top:10px;">Enviar avaliação</button>
+      </div>
+    ` : ''}
+  `;
+  const btnCancelar = document.getElementById('btn-cancelar');
+  if (btnCancelar) {
+    btnCancelar.addEventListener('click', async () => {
+      await supabase.from('corridas').update({ status: 'cancelada' }).eq('id', corrida.id);
+      verificarCorridaAtiva();
+      carregarHistorico();
+    });
+  }
+
+  let notaEscolhida = 0;
+  document.querySelectorAll('#estrelas [data-nota]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      notaEscolhida = parseInt(btn.dataset.nota);
+      document.querySelectorAll('#estrelas [data-nota]').forEach(b => {
+        b.style.color = parseInt(b.dataset.nota) <= notaEscolhida ? 'var(--orange-soft)' : 'var(--muted)';
+      });
+    });
+  });
+  const btnAvaliar = document.getElementById('btn-enviar-avaliacao');
+  if (btnAvaliar) {
+    btnAvaliar.addEventListener('click', async () => {
+      if (!notaEscolhida) { alert('Escolha uma nota de 1 a 5 estrelas.'); return; }
+      await supabase.from('avaliacoes').insert({
+        corrida_id: corrida.id,
+        avaliador_id: session.user.id,
+        avaliado_id: corrida.motorista_id,
+        nota: notaEscolhida,
+        comentario: document.getElementById('comentario-avaliacao').value,
+      });
+      await supabase.from('corridas').update({ avaliada: true }).eq('id', corrida.id);
+      verificarCorridaAtiva();
+      carregarHistorico();
+    });
+  }
+}
+
+document.getElementById('form-corrida').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('btn-pedir');
+  btn.disabled = true; btn.textContent = 'Chamando…';
+  formMsg.innerHTML = '';
+
+  const km = parseFloat(inputDistancia.value) || 0;
+  const preco = await calcularPreco();
+  const metodoPagamento = document.querySelector('input[name="pagamento"]:checked').value;
+
+  const { data: novaCorrida, error } = await supabase.from('corridas').insert({
+    passageiro_id: session.user.id,
+    origem: document.getElementById('origem').value,
+    destino: document.getElementById('destino').value,
+    distancia_km: km,
+    preco_estimado: preco,
+    status: 'procurando',
+    metodo_pagamento: metodoPagamento,
+    codigo_promo: promoAtual ? promoAtual.codigo : null,
+    desconto: promoAtual ? promoAtual.desconto_percentual : 0,
+  }).select().single();
+
+  if (error) {
+    formMsg.innerHTML = `<div class="alert alert-error">Não foi possível pedir a corrida. Tente novamente.</div>`;
+    console.error(error);
+  } else {
+    // Registra o pagamento como "pendente" — a confirmação real via M-Pesa/e-Mola
+    // acontece fora do site por enquanto (ver README).
+    await supabase.from('pagamentos').insert({
+      corrida_id: novaCorrida.id,
+      metodo: metodoPagamento,
+      valor: preco,
+      status: 'pendente',
+    });
+    document.getElementById('form-corrida').reset();
+    verificarCorridaAtiva();
+  }
+  btn.disabled = false; btn.textContent = 'Chamar txopela';
+});
+
+async function carregarHistorico() {
+  const { data } = await supabase
+    .from('corridas')
+    .select('*')
+    .eq('passageiro_id', session.user.id)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  const tbody = document.getElementById('tbody-historico');
+  tbody.innerHTML = (data || []).map(c => `
+    <tr>
+      <td>${formatDateHora(c.created_at)}</td>
+      <td>${c.origem} → ${c.destino}</td>
+      <td>${formatMT(c.preco_estimado)}</td>
+      <td><span class="status-pill status-${c.status}">${statusLabel[c.status] || c.status}</span></td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" class="state-msg">Nenhuma corrida ainda.</td></tr>';
+}
+
+// Tempo real: atualiza automaticamente quando o status da corrida muda
+supabase
+  .channel('corridas-passageiro')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'corridas', filter: `passageiro_id=eq.${session.user.id}` }, () => {
+    verificarCorridaAtiva();
+    carregarHistorico();
+  })
+  .subscribe();
+
+verificarCorridaAtiva();
+carregarHistorico();
+</script>
+
+</body>
+</html>
